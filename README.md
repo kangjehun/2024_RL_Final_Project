@@ -4,7 +4,7 @@ This repository contains implementations of various reinforcement learning algor
 
 It includes classical model-free RL algorithms such as **PPO**, **SAC**, and **DDPG** as baselines, 
 
-as well as state-of-the-art model-free RL algorithms like **TBD** and model-based RL algorithms such as 
+as well as state-of-the-art model-free RL algorithms like **(TBD)** and model-based RL algorithms such as 
 
 **Dreamer-v2**, **Dreamer-v3**, **TransDreamer**, and **TransDreamer-v2 (Ours)**.
 
