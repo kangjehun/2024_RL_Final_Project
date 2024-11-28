@@ -44,22 +44,22 @@ model.learn(total_timesteps=100000)
 
 # Save the trained model
 save_path = os.path.join(MODEL_SAVE_DIR, f"{ALGORITHM}_CarRacing")
-model.save(f"{ALGORITHM}_CarRacing")
+model.save(save_path)
 print(f"Model saved to {save_path}")
 
 # Cloase the environment
 vec_env.close()
 
 # Reload the model for evaluation (optional)
-model = model.load(f"{ALGORITHM}_CarRacing")
+model = model.load(save_path)
 
 # Run the trained model
 obs = env.reset()[0]
 while True:
     action, _states = model.predict(obs, deterministic=True)
-    obs, reward, done, info = env.step(action)
+    obs, reward, terminated, truncated, info = env.step(action)
     env.render()
-    if done:
+    if terminated or truncated:
         obs = env.reset()[0]
 
 env.close()
