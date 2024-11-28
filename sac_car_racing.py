@@ -7,7 +7,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecTransposeImage
 # Training Environment 
 def create_env():
     env = gym.make("CarRacing-v3", render_mode="rgb_array")  # render_mode 추가
-    env = Monitor(env)  # 로그 저장용
+    env = Monitor(env)
     return env
 
 env = DummyVecEnv([create_env])
@@ -17,7 +17,7 @@ eval_env = DummyVecEnv([create_env])
 eval_env = VecTransposeImage(eval_env)
 
 model = SAC(
-    "CnnPolicy",  # 이미지 기반 환경이므로 CNN 정책 사용
+    "CnnPolicy",
     env,
     verbose=1,
     buffer_size=100000,
