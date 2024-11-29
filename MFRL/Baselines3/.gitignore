@@ -1,0 +1,7 @@
+# Ignore SAC model
+/SAC/model/
+/SAC/tensorboard/
+/SAC/video_record/video
+/SAC/model_2000k
+/SAC/tensorboard_2000k
+/SAC/eval/eval_logs
