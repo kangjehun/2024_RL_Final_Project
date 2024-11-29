@@ -8,3 +8,5 @@ MFRL/Baselines3/SAC/tensorboard/
 MFRL/Baselines3/SAC/tensorboard_2000k/
 MFRL/Baselines3/SAC/eval/eval_logs/
 MFRL/Baselines3/SAC/video/
+
+*.zip
