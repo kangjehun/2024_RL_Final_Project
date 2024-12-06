@@ -1,7 +1,0 @@
-# Ignore SAC
-model_2000k/
-tensorboard_2000k/
-eval/eval_logs/
-
-*.zip
-*.mp4

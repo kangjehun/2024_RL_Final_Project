@@ -1,3 +1,10 @@
 # Ignore saved_models and tensorboard_logs
-MFRL/saved_models/
-MFRL/tensorboard_logs/
+MFRL/Baseline3
+
+# Ignore hidden files and directories
+.*
+
+# Ignore Python cache directories
+__pycache__/
+*.pyc
+*.pyo
