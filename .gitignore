@@ -1,5 +1,5 @@
 # Ignore saved_models and tensorboard_logs
-MFRL/Baseline3
+MFRL/Baselines3
 
 # Ignore hidden files and directories
 .*
