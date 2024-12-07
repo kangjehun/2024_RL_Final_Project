@@ -80,11 +80,11 @@ class RLTester:
         # Run the agent in the environment
         for _ in range(self.video_length):
             action, _ = self.model.predict(obs, deterministic=True)
-            obs, _, terminated, truncated, _ = self.eval_env.step(action)
+            obs, _, done , _ = self.eval_env.step(action)
             if not self.record:
                 self.eval_env.render()
-            if terminated or truncated:
-                obs = self.eval_env.reset()
+            if done:
+                break
         
         # Close the environment
         self.eval_env.close()
