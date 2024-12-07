@@ -1,0 +1,36 @@
+Metadata-Version: 2.1
+Name: sbx-rl
+Version: 0.8.0
+Summary: Jax version of CrossQ; Bhatt and Palenicek et al. 2023.
+Home-page: https://github.com/adityab/sbx-crossq
+Author: Aditya Bhatt, Daniel Palenicek
+Author-email: aditya.bhatt@dfki.de, daniel.palenicek@tu-darmstadt.de
+License: MIT
+Keywords: crossq reinforcement-learning-algorithms reinforcement-learning machine-learning gym openai stable baselines toolbox python data-science
+Classifier: Programming Language :: Python :: 3.11
+Requires-Python: ==3.11.5
+License-File: LICENSE
+License-File: NOTICE
+Requires-Dist: stable_baselines3==2.1.0
+Requires-Dist: flax==0.7.4
+Requires-Dist: gymnasium==0.29.1
+Requires-Dist: imageio==2.31.3
+Requires-Dist: mujoco==2.3.7
+Requires-Dist: optax==0.1.7
+Requires-Dist: tqdm==4.66.1
+Requires-Dist: rich==13.5.2
+Requires-Dist: rlax==0.1.6
+Requires-Dist: tensorboard==2.14.0
+Requires-Dist: tensorflow-probability==0.21.0
+Requires-Dist: wandb==0.15.10
+Requires-Dist: scipy==1.11.4
+Requires-Dist: shimmy==1.3.0
+Provides-Extra: tests
+Requires-Dist: pytest; extra == "tests"
+Requires-Dist: pytest-cov; extra == "tests"
+Requires-Dist: pytest-env; extra == "tests"
+Requires-Dist: pytest-xdist; extra == "tests"
+Requires-Dist: mypy; extra == "tests"
+Requires-Dist: ruff; extra == "tests"
+Requires-Dist: isort>=5.0; extra == "tests"
+Requires-Dist: black; extra == "tests"
