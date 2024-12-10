@@ -1,5 +1,6 @@
 # Ignore saved_models and tensorboard_logs
 MFRL/Baselines3/
+MBRL/Dreamerv3/logdir
 
 # Ignore hidden files and directories
 .*
