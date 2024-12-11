@@ -13,6 +13,10 @@ These algorithms are applied to the `CarRacing-v2` environment from OpenAI Gymna
 ---
 
 # Notices
+**2024.12.11 (Yeonchan)**
+- Dreamer-v3 configurations in configs.yaml include settings like steps, batch_size, and envs, which should be updated as needed.
+- Logs and checkpoints are stored in the --logdir directory, and progress can be monitored using TensorBoard.
+
 **2024.12.04 (Jehun)**
 - Always update the **Notices** and **Updates** sections in the README when pushing any modifications
 - Please add hidden files or directories to `.gitignore`.
@@ -21,16 +25,15 @@ These algorithms are applied to the `CarRacing-v2` environment from OpenAI Gymna
 - Maintain the directory structure and adhere to the code style with sufficient comments.
 
 # Updates
+**2024.12.11 (Yeonchan)**
+- Added Dreamer-v3 code for model-based RL experiments with CarRacing-v2.
+- Updated the README to include a quick start guide for running Dreamer-v3.
+
 **2024.12.04 (Jehun)**
 - Added a wrapper to prevent the agent from leaving the track. If the agent goes too far off-track (see `env/wrapper.py`), it receives a reward penalty of -100, and the episode terminates.
 - Rearranged the directory structure for easier imports in Python.
 - Updated `train.py` to be compatible with three RL algorithms (SAC, PPO, DDPG). Please test the algorithm assigned to you and report any issues.
 - Merged `sac_racing_play.py` and `record_sac.py` into `test.py`.
-
-
-
-# Updates
-2024.12.04 : Add Wrapper 
 
 # Quick Start
 
@@ -43,6 +46,12 @@ python3 car_racing_example.py
 ```bash
 cd MFRL
 python3 train.py --algorithm {PPO, SAC, DDPG}
+```
+
+### To train with Dreamer-v3 model 
+```bash
+cd MBRL/Dreamerv3
+python3 dreamer.py --configs car_racing --task car_racing_v2 --logdir ./logdir/car_racing
 ```
 
 ### Logs with TensorBoard
@@ -82,4 +91,3 @@ Check GPU status during training
 ```bash
 watch -n 1 nvidia-smi
 ```
-

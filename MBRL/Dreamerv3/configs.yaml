@@ -94,7 +94,7 @@ defaults:
   disag_action_cond: False
 
 car_racing:
-  steps: 1e6
+  steps: 2e6
   envs: 1
   train_ratio: 512
 
