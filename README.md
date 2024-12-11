@@ -14,8 +14,8 @@ These algorithms are applied to the `CarRacing-v2` environment from OpenAI Gymna
 
 # Notices
 **2024.12.11 (Yeonchan)**
-- Dreamer-v3 configurations are managed through configs.yaml. Update settings like steps, batch_size, and envs as needed.
-- Logs and checkpoints are saved in the directory specified by --logdir. Use TensorBoard to monitor progress.
+- Dreamer-v3 configurations are managed through `configs.yaml`. Update settings like steps, batch_size, and envs as needed.
+- Logs and checkpoints are saved in the directory specified by `--logdir`. Use TensorBoard to monitor progress.
 
 **2024.12.04 (Jehun)**
 - Always update the **Notices** and **Updates** sections in the README when pushing any modifications
