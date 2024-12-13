@@ -44,7 +44,7 @@ class RLTrainer:
         return create_carracing_env(
             render_mode = self.render_mode,
             use_subproc=self.use_subproc,
-            num_envs=self.num_envs
+            num_envs=self.num_envs,
         )
         
     def _initialize_model(self, env):
@@ -149,6 +149,7 @@ def parse_ars():
     parser.add_argument(
         "--timesteps",
         type=int,
+        required=True,
         default=100000,
         help="Total number of timestaps for training"
     )
