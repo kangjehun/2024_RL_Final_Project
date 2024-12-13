@@ -33,6 +33,8 @@ class RLTester:
         self.video_length = video_length
         self.record = record
         
+        print(f"video_length: {self.video_length}")
+        
         # Paths
         self.video_folder = f"Baselines3/{self.algorithm}/video_record/video"
         self.model_path = f"Baselines3/{self.algorithm}/model/best_model.zip"
@@ -50,7 +52,7 @@ class RLTester:
     def _create_environment(self):
         """ Create the evaluation environment and wrap it for video recording """
         render_mode = "rgb_array" if self.record else "human"
-        env = create_carracing_env(render_mode=render_mode, use_subproc=False, num_envs=1)
+        env = create_carracing_env(render_mode=render_mode, use_subproc=False, num_envs=1, train=False, max_episode_steps=self.video_length)
         if self.record:
             env = VecVideoRecorder(
                 env,
@@ -78,9 +80,12 @@ class RLTester:
         obs = self.eval_env.reset()
         
         # Run the agent in the environment
+        timestamp = 0
         for _ in range(self.video_length):
             action, _ = self.model.predict(obs, deterministic=True)
             obs, _, done , _ = self.eval_env.step(action)
+            timestamp += 1
+            print(f"Timestamp: {timestamp}")
             if not self.record:
                 self.eval_env.render()
             if done:
@@ -88,10 +93,11 @@ class RLTester:
         
         # Close the environment
         self.eval_env.close()
+        print(f"Environment closed after {timestamp} timesteps")
         if self.record:
             print(f"Video recording for {self.algorithm} agent completed. Saved in {self.video_folder}")
         else:
-            print(f"Testing of {self.algorithm} agent completed.")
+            print(f"Testing of {self.algorithm} agent completed")
 
 def parse_args():
     """ Parse command-line arguments """
