@@ -8,12 +8,12 @@ reproducibility: false
 log_dir: "data/CS672"
 data_dir: "data/CS672"
 train:
-  total_steps: 1e6
-  train_steps: 50
+  total_steps: 1e2
+  train_steps: 100
   train_every: 16
   eval_every: 1e5
-  log_every: 1e5
-  checkpoint_every: 1e5
+  log_every: 1e3
+  checkpoint_every: 1e4
   num_workers: 4
   batch_size: 50
   episode_length: 50
@@ -33,7 +33,7 @@ arch:
       num_heads: 8
       dropout: 0.1
       dropatt: 0.1
-      num_layers: 2
+      num_layers: 6
       pre_lnorm: true
       last_ln: false
       deter_type: "concat_all_layers"
@@ -82,10 +82,10 @@ rl:
 optimize:
   optimizer: "adamW"
   model_lr: 2e-4
-  actor_lr: 1e-5
+  actor_lr: 4e-5
   critic_lr: 1e-4
   weight_decay: 1e-6
   eps : 1e-5
 checkpoint:
   checkpoint_dir: "data/CS672"
-  max_num: 3
+  max_num: 10

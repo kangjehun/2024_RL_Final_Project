@@ -127,7 +127,7 @@ class TransformerDynamic(nn.Module):
                 logits (tensor): (B, T, stoch_category_size, stoch_class_size)
                 stoch (distribution): batch_shape=(B, T), event_shape=(stoch_category_size, stoch_class_size)
         """
-        # TODO [REMINDER] I removed action argument
+        # TODO [REMINDER] I removed action and temp argument
         
         B, T, _ = embeded_observation.shape
         logits = self.post_stoch_emb(embeded_observation).float()
@@ -148,6 +148,7 @@ class TransformerDynamic(nn.Module):
                 stoch (distribution): batch_shape=(B, T), event_shape=(stoch_category_size, stoch_class_size)
                 deter (tensor): (B, T, L*D) if concat_all_layers else (B, T, D)
         """
+        # TODO [REMINDER] I removed action and temp argument
         
         # Create embedding for the previous stochastic state and action
         B, T, N, C = prev_stoch.shape
@@ -155,18 +156,18 @@ class TransformerDynamic(nn.Module):
         act_sto_emb = self.action_stoch_emb(torch.cat([prev_action, prev_stoch], dim=-1))
         act_sto_emb = F.elu(act_sto_emb)
         x = act_sto_emb.reshape(B, T, -1, 1, 1) # B, T, D, 1, 1 where D = d_model
-        o = self.transformer(x)
-        o = o.reshape(B, T, self.n_layers, -1) # B, T, L, D
+        o = self.transformer(x) # B, T, L*D
+        o = o.reshape(B, T, self.num_layers, -1) # B, T, L, D
         if self.deter_type == 'concat_all_layers':
-            deter = o.reshape(B, T, -1)
+            deter = o.reshape(B, T, -1) # B, T, L*D
         else:
-            deter = o[:, :, -1]
+            deter = o[:, :, -1] # B, T, D
         logits = self.prior_stoch_emb(deter).float() # B, T, N*C
         B, T, N, C = prev_stoch.shape
         logits = logits.reshape(B, T, N, C) # B, T, N, C
         prior_state = self.stochastic_layer(logits)
-        prior_state['deter'] = deter
-        # prior_state['transformer_layer_outputs'] = o # TODO [REMINDER] necessary?
+        prior_state['deter'] = deter # B, T, L*D
+        prior_state['transformer_layer_outputs'] = o # B, T, L, D
         
         return prior_state
     
@@ -189,6 +190,19 @@ class TransformerDynamic(nn.Module):
         
         state = {'logits': logits, 'stoch': stoch}
         return state
+    
+    def get_feature(self, state):
+        """_summary_
+        Args:
+            state (dict): 
+                stoch (distribution): batch_shape=(B, T), event_shape=(stoch_category_size, stoch_class_size) = (N, C)
+                deter (tensor): (B, T, L*D) if concat_all_layers else (B, T, D)
+        """
+        
+        shape = state['stoch'].shape
+        stoch = state['stoch'].reshape([*shape[:-2]] + [self.stoch_category_size * self.stoch_class_size]) # B, T, N*C
+        deter = state['deter'] # B, T, L*D
+        return torch.cat([stoch, deter], dim=-1) # B, T, N*C + L*D
 
 class ImgEncoder(nn.Module):
     

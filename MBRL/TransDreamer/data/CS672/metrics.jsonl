@@ -1,5 +1,5 @@
-{"step": 1003, "train/return": -71.53025817871094, "train/length": 250, "train/episodes": 1}
-{"step": 2006, "train/return": -53.736663818359375, "train/length": 250, "train/episodes": 2}
-{"step": 3000, "train/return": -18.14947509765625, "train/length": 250, "train/episodes": 3}
-{"step": 4000, "train/return": -25.266908645629883, "train/length": 250, "train/episodes": 4}
-{"step": 5000, "train/return": -28.82563018798828, "train/length": 250, "train/episodes": 5}
+{"step": 1000, "train/return": -32.38434982299805, "train/length": 250, "train/episodes": 1}
+{"step": 2000, "train/return": -38.08049774169922, "train/length": 250, "train/episodes": 2}
+{"step": 3000, "train/return": -33.333335876464844, "train/length": 250, "train/episodes": 3}
+{"step": 4000, "train/return": -25.081443786621094, "train/length": 250, "train/episodes": 4}
+{"step": 5000, "train/return": -54.37262725830078, "train/length": 250, "train/episodes": 5}

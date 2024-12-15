@@ -36,12 +36,12 @@ arch:
       dropout: 0.1
       last_ln: false
       num_heads: 8
-      num_layers: 2
+      num_layers: 6
       pre_lnorm: true
     obs_type: bev
 checkpoint:
   checkpoint_dir: data/CS672
-  max_num: 3
+  max_num: 10
 data_dir: data/CS672
 env:
   action_repeat: 4
@@ -65,7 +65,7 @@ exp_name: train
 log_dir: data/CS672
 model: transdreamer
 optimize:
-  actor_lr: 1e-5
+  actor_lr: 4e-5
   critic_lr: 1e-4
   eps: 1e-5
   model_lr: 2e-4
@@ -81,11 +81,11 @@ run_id: '0'
 seed: 0
 train:
   batch_size: 50
-  checkpoint_every: 1e5
+  checkpoint_every: 1e4
   episode_length: 50
   eval_every: 1e5
-  log_every: 1e5
+  log_every: 1e3
   num_workers: 4
-  total_steps: 1e7
+  total_steps: 1e2
   train_every: 16
-  train_steps: 50
+  train_steps: 100

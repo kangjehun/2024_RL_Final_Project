@@ -115,6 +115,7 @@ def train(model, cfg, device, verbose=1):
     log_every = int(float(cfg.train.log_every))
     eval_every = int(float(cfg.train.eval_every))
     checkpoint_every = int(float(cfg.train.checkpoint_every))
+    episode_length = cfg.train.episode_length
     
     print_colored("Check training configuration...", "blue")
     print_colored(f"- gloabl_step: {global_step}", "dark_white")
@@ -125,16 +126,29 @@ def train(model, cfg, device, verbose=1):
     print_colored(f"- eval_every: {eval_every}", "dark_white")
     print_colored(f"- checkpoint_every: {checkpoint_every}", "dark_white")
     
-    # print_colored("Start training loop...", "blue")
-    # while global_step < total_steps:
+    print_colored("Start training loop...", "blue")
+    while global_step < total_steps:
         
-    #     # Evaluation
-    #     if global_step % 
-    #     print_colored("- Evaluation", "green")
-    #     with torch.no_grad():
-    #         model.eval()
+        # Evaluation
+        print_colored("- Evaluation", "green")
+        with torch.no_grad():
+            model.eval()
+            next_obs, _, terminated, truncated, _ = train_env.step(action_list[0, -1].detach().cpu().numpy())
+            prev_image = torch.tensor(obs[obs_type])
+            next_image = torch.tensor(next_obs[obs_type])
+            action_list, state = model.policy(prev_image.to(device), next_image.to(device), action_list.to(device),
+                                              state=state, episode_length=episode_length)
+            obs = next_obs
+            # if truncated or terminated:
+            #     train_env.reset()
+            #     state = None
+            #     action_list = torch.zeros(1, 1, cfg.env.action_size).float() # B, T, A = d_action
+                
+                
             
+        
+        
             
-    #     # Training
-    #     print_colored("- Training", "green")
-    #     pass
+        # Training
+        print_colored("- Training", "green")
+        pass
