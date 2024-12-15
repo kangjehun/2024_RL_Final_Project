@@ -81,6 +81,11 @@ run_id: '0'
 seed: 0
 train:
   batch_size: 50
+  checkpoint_every: 1e5
   episode_length: 50
+  eval_every: 1e5
+  log_every: 1e5
   num_workers: 4
+  total_steps: 1e7
+  train_every: 16
   train_steps: 50

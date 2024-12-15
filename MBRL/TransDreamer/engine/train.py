@@ -16,7 +16,7 @@ from envs.tools import count_steps
 
 def train(model, cfg, device, verbose=1):
     
-    print_colored("Prepare training...", "purple")
+    print_colored("Prepare training...", "blue")
     # Verbose
     print_colored(f"- verbose level : {verbose}", "dark_white")
     if verbose >= 1:
@@ -78,7 +78,7 @@ def train(model, cfg, device, verbose=1):
     data_dir = os.path.join(data_dir, cfg.exp_name, cfg.env.name, cfg.run_id, 'train_episodes')
     eval_data_dir = os.path.join(data_dir, cfg.exp_name, cfg.env.name, cfg.run_id, 'test_episodes')
     train_env = make_env(cfg, writer, 'train', data_dir, store=True, render_mode=cfg.env.render_mode_train)
-    eval_env = make_env(cfg, writer, 'eval', eval_data_dir, store=True, render_mode=cfg.env.render_mode_eval)
+    test_env = make_env(cfg, writer, 'test', eval_data_dir, store=True, render_mode=cfg.env.render_mode_eval)
     
     # Prefill
     train_env.reset()
@@ -104,15 +104,37 @@ def train(model, cfg, device, verbose=1):
     train_iter = iter(train_dataloader)
     global_step = max(global_step, steps)
     
-    # [DEBUG]
-    print(f"gloabl_step: {global_step}")
-    print(f"env_step: {env_step}")
+    # Initialize for training
+    obs, _ = train_env.reset()
+    state = None
+    action_list = torch.zeros(1, 1, cfg.env.action_size).float() # B, T, d_action
+    action_list[0, 0, 0] = 1.
+    obs_type = cfg.arch.world_model.obs_type
+    total_steps = int(float(cfg.train.total_steps))
+    train_every = int(float(cfg.train.train_every))
+    log_every = int(float(cfg.train.log_every))
+    eval_every = int(float(cfg.train.eval_every))
+    checkpoint_every = int(float(cfg.train.checkpoint_every))
     
-    # obs = train_env.reset()
-    # state = None
-    # action_list = torch.zeros(1, 1, cfg.env.action_size).float()
-    # action_list[0, 0, 0] = 1.
-    # obs_type = cfg.arch.world_model.obs_type
+    print_colored("Check training configuration...", "blue")
+    print_colored(f"- gloabl_step: {global_step}", "dark_white")
+    print_colored(f"- env_step: {env_step}", "dark_white")
+    print_colored(f"- total_steps: {total_steps}", "dark_white")
+    print_colored(f"- train_every: {train_every}", "dark_white")
+    print_colored(f"- log_every: {log_every}", "dark_white")
+    print_colored(f"- eval_every: {eval_every}", "dark_white")
+    print_colored(f"- checkpoint_every: {checkpoint_every}", "dark_white")
     
-    
-    
+    # print_colored("Start training loop...", "blue")
+    # while global_step < total_steps:
+        
+    #     # Evaluation
+    #     if global_step % 
+    #     print_colored("- Evaluation", "green")
+    #     with torch.no_grad():
+    #         model.eval()
+            
+            
+    #     # Training
+    #     print_colored("- Training", "green")
+    #     pass

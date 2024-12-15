@@ -7,6 +7,16 @@ seed: 0
 reproducibility: false
 log_dir: "data/CS672"
 data_dir: "data/CS672"
+train:
+  total_steps: 1e6
+  train_steps: 50
+  train_every: 16
+  eval_every: 1e5
+  log_every: 1e5
+  checkpoint_every: 1e5
+  num_workers: 4
+  batch_size: 50
+  episode_length: 50
 arch:
   prefill_steps: 5000 # 50000
   world_model:
@@ -66,11 +76,6 @@ env:
         width: 96
         channels: 3
         type: "bev"
-train:
-  train_steps: 50
-  num_workers: 4
-  batch_size: 50
-  episode_length: 50
 rl:
   discount: 0.999
   lambda_ : 0.95
