@@ -1,0 +1,86 @@
+arch:
+  actor:
+    dist: onehot
+    layers: 4
+    num_units: 400
+  critic:
+    layers: 4
+    num_units: 400
+  prefill_steps: 5000
+  world_model:
+    ImageDecoder:
+      num_channels: 48
+      reconstruction_sigma: 1.0
+    ImageEncoder:
+      kernel_size: 4
+      num_channels: 48
+      padding: 0
+      stride: 2
+    Pcont:
+      layers: 4
+      num_units: 400
+    Reward:
+      layers: 4
+      num_units: 400
+    TSSM:
+      discrete_type: discrete
+      hidden_size: 600
+      stoch_category_size: 32
+      stoch_class_size: 32
+    Transformer:
+      d_ff: 1024
+      d_head: 64
+      d_model: 600
+      deter_type: concat_all_layers
+      dropatt: 0.1
+      dropout: 0.1
+      last_ln: false
+      num_heads: 8
+      num_layers: 2
+      pre_lnorm: true
+    obs_type: bev
+checkpoint:
+  checkpoint_dir: data/CS672
+  max_num: 3
+data_dir: data/CS672
+env:
+  action_repeat: 4
+  action_size: 5
+  continuous: false
+  grayscale: false
+  name: Box2D_CarRacing-v2
+  observation:
+    image:
+      bev:
+        channels: 3
+        height: 96
+        type: bev
+        width: 96
+  precision: 32
+  render_mode_eval: rgb_array
+  render_mode_test: human
+  render_mode_train: human
+  timelimit: 1000
+exp_name: train
+log_dir: data/CS672
+model: transdreamer
+optimize:
+  actor_lr: 1e-5
+  critic_lr: 1e-4
+  eps: 1e-5
+  model_lr: 2e-4
+  optimizer: adamW
+  weight_decay: 1e-6
+reproducibility: false
+resume: true
+resume_checkpoint: ''
+rl:
+  discount: 0.999
+  lambda_: 0.95
+run_id: '0'
+seed: 0
+train:
+  batch_size: 50
+  episode_length: 50
+  num_workers: 4
+  train_steps: 50

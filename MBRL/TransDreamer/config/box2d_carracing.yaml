@@ -1,21 +1,21 @@
-exp_name: "CarRacingV2"
+exp_name: "train"
+run_id: "0"
+model: transdreamer
+resume: true
+resume_checkpoint: ""
 seed: 0
 reproducibility: false
+log_dir: "data/CS672"
+data_dir: "data/CS672"
 arch:
+  prefill_steps: 5000 # 50000
   world_model:
-    discrete_type: "discrete"
+    obs_type: "bev"
     TSSM:
-      act: "elu"
       hidden_size: 600
-      stoch_size: 32
-      stoch_discrete: 32
-      weight_init: "xavier"
-    ImageEncoder:
-      num_channels: 48
-      kernel_size: 4
-      stride: 2
-      padding: 0
-      weight_init: "xavier"
+      stoch_category_size: 32
+      stoch_class_size: 32
+      discrete_type: "discrete"
     Transformer:
       d_model: 600
       d_head: 64
@@ -24,13 +24,63 @@ arch:
       dropout: 0.1
       dropatt: 0.1
       num_layers: 2
-      weight_init: "xavier"
       pre_lnorm: true
       last_ln: false
+      deter_type: "concat_all_layers"
+    ImageEncoder:
+      num_channels: 48
+      kernel_size: 4
+      stride: 2
+      padding: 0
+    ImageDecoder:
+      num_channels: 48
+      reconstruction_sigma: 1.0
+    Reward:
+      layers: 4
+      num_units: 400
+    Pcont:
+      layers: 4
+      num_units: 400
+  actor:
+    layers: 4
+    num_units: 400
+    dist: "onehot"
+  critic:
+    layers: 4
+    num_units: 400
 env:
+  name: "Box2D_CarRacing-v2"
+  continuous: false
   action_size: 5
+  action_repeat: 4
+  precision: 32
+  timelimit: 1000
   grayscale: false
+  render_mode_train: "human"
+  render_mode_eval: "rgb_array"
+  render_mode_test: "human"
   observation:
-    height: 64
-    width: 64
-    channels: 3
+    image:
+      bev:
+        height: 96
+        width: 96
+        channels: 3
+        type: "bev"
+train:
+  train_steps: 50
+  num_workers: 4
+  batch_size: 50
+  episode_length: 50
+rl:
+  discount: 0.999
+  lambda_ : 0.95
+optimize:
+  optimizer: "adamW"
+  model_lr: 2e-4
+  actor_lr: 1e-5
+  critic_lr: 1e-4
+  weight_decay: 1e-6
+  eps : 1e-5
+checkpoint:
+  checkpoint_dir: "data/CS672"
+  max_num: 3

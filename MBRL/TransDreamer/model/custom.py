@@ -50,6 +50,56 @@ class Conv2DBlock(nn.Module):
             
         return output
 
+class ConvTranspose2DBlock(nn.Module):
+    
+    def __init__(self, c_in, c_out, k, s, p, bias=True,
+                 num_groups=0, weight_init='xavier',
+                 non_linearity=True, act='elu'):
+        
+        super().__init__()
+        
+        self.net = nn.ConvTranspose2d(c_in, c_out, kernel_size=k, stride=s, padding=p, bias=bias)
+        
+        # Weight initialization
+        if weight_init == 'xavier':
+            nn.init.xavier_uniform_(self.net.weight)
+        else:
+            nn.init.kaiming_uniform_(self.net.weight)
+            
+        # Bias initialization
+        if bias:
+            nn.init.zeros_(self.net.bias)
+        
+        # Group normalization
+        if num_groups > 0: 
+            self.group_norm = nn.GroupNorm(num_groups=num_groups, num_channels=c_out)
+        
+        # Non-linear activation
+        if non_linearity:
+            if act == 'relu':
+                self.non_linear = nn.ReLU()
+            elif act == 'elu':
+                self.non_linear = nn.ELU()
+            else:
+                self.non_linear = nn.CELU()
+        
+        self.num_groups = num_groups
+        self.non_linearity = non_linearity
+    
+    def forward(self, inputs):
+        
+        o = self.net(inputs)
+        
+        if self.num_groups > 0:
+            o = self.group_norm(o)
+        
+        if self.non_linearity:
+            o = self.non_linear(o)
+        
+        return o
+        
+        
+
 class Linear(nn.Module):
     
     def __init__(self, dim_in, dim_out, bias=True, weight_init='xavier'):
@@ -71,7 +121,7 @@ class Linear(nn.Module):
 
 class MLP(nn.Module):
     
-    def __init__(self, dims, act, weight_init='xavier', output_act=None, norm=False):
+    def __init__(self, dims, act='elu', weight_init='xavier', output_act=None, norm=False):
         
         super().__init__()
         
@@ -80,7 +130,7 @@ class MLP(nn.Module):
         
         layers = []
         for d_in, d_out in zip(dims_in, dims_out):
-            layers.append(Linear(d_in, d_out))
+            layers.append(Linear(d_in, d_out, weight_init=weight_init))
             if norm:
                 layers.append(nn.LayerNorm(d_out))
             if act == 'relu':
@@ -90,7 +140,7 @@ class MLP(nn.Module):
             else:
                 layers.append(nn.CELU())
         
-        layers.append(Linear(d_out, dims[-1]))
+        layers.append(Linear(d_out, dims[-1], weight_init=weight_init))
         if output_act:
             if norm:
                 layers.append(nn.LayerNorm)
@@ -103,4 +153,3 @@ class MLP(nn.Module):
     
     def forward(self, x):
         return self.net(x)
-        
