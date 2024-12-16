@@ -1,9 +1,14 @@
 import torch
+import pdb
+
 import torch.nn as nn
 import torch.nn.functional as F
 
 from torch.distributions import Independent, Normal, Bernoulli
+from torch.distributions import kl_divergence
 from torch.distributions.one_hot_categorical import OneHotCategorical
+from collections import defaultdict
+
 from .transformer import Transformer
 from .custom import Conv2DBlock, ConvTranspose2DBlock
 from .custom import Linear, MLP
@@ -16,6 +21,33 @@ class TransformerWorldModel(nn.Module):
         super().__init__()
         
         # Configs
+        # - train
+        self.episode_length = cfg.train.episode_length
+        self.log_every_step = int(float(cfg.train.log_every))
+        self.log_grad = cfg.train.log_grad
+        # - loss
+        self.kl_scale = cfg.loss.kl_scale
+        self.kl_balance = cfg.loss.kl_balance
+        self.free_nats = cfg.loss.free_nats
+        # - arch / world model
+        self.horizon = cfg.arch.world_model.horizon
+        self.pcont_layers = cfg.arch.world_model.Pcont.layers
+        self.pcont_num_units = cfg.arch.world_model.Pcont.num_units
+        # - arch / reward
+        self.reward_layers = cfg.arch.world_model.Reward.layers
+        self.reward_num_units = cfg.arch.world_model.Reward.num_units
+        self.reward_transform = dict(
+            tanh = torch.tanh,
+            sigmoid = torch.sigmoid,
+            none=nn.Identity(),
+        )[cfg.arch.world_model.Reward.transform]
+        # - env
+        self.observation_type = cfg.env.observation.image.bev.type
+        # - rl
+        self.discount = cfg.rl.discount
+        self.pcont_scale = cfg.loss.pcont_scale
+        # - optimize
+        self.grad_clip = cfg.optimize.grad_clip
         # - dense input size
         self.stoch_category_size = cfg.arch.world_model.TSSM.stoch_category_size
         self.stoch_class_size = cfg.arch.world_model.TSSM.stoch_class_size
@@ -25,12 +57,6 @@ class TransformerWorldModel(nn.Module):
         if self.deter_type == 'concat_all_layers':
             self.deter_size = self.num_layers * self.d_model
         self.dense_input_size = self.deter_size + self.stoch_category_size * self.stoch_class_size
-        # - reward
-        self.reward_layers = cfg.arch.world_model.Reward.layers
-        self.reward_num_units = cfg.arch.world_model.Reward.num_units
-        # - pcont
-        self.pcont_layers = cfg.arch.world_model.Pcont.layers
-        self.pcont_num_units = cfg.arch.world_model.Pcont.num_units
         
         # World Model Components
         # TSSM
@@ -45,6 +71,171 @@ class TransformerWorldModel(nn.Module):
     def forward(self, traj):
         # TODO [REMINDER] necessary?
         raise NotImplementedError
+    
+    def compute_loss(self, traj, global_step):
+        
+        self.train()
+        self.requires_grad_(True)
+        
+        # world model rollout to obtain state representation
+        prior_state, post_state = self.dynamic(traj)
+        # compute world model loss given state representation
+        model_loss, model_logs = self.world_model_loss(traj, global_step, prior_state, post_state)
+        
+        return model_loss, model_logs, prior_state, post_state
+
+    def world_model_loss(self, traj, global_step, prior_state, post_state):
+        
+        # Extract and Normalize the observations
+        obs = traj[self.observation_type]
+        obs = obs / 255. - 0.5
+        
+        # Extract the rewards
+        reward = traj['reward']
+        reward = self.reward_transform(reward).float()
+        
+        post_state_trimed = {}
+        for k, v in post_state.items():
+            if k in ['stoch', 'logits']:
+                post_state_trimed[k] = v[:, 1:] # B, 0:tau, ... -> B, 1:tau, ...
+            elif k in ['deter', 'transformer_layer_outputs']:
+                post_state_trimed[k] = v # B, 1:tau, ...
+            else:
+                raise NotImplementedError(k)
+        
+        transformer_feature = self.dynamic.get_feature(post_state_trimed) # B, 1:tau, d_deter+d_stoch
+        # seq_len = self.H # TODO [REMINDER] I think it should be (episode length -1) = T-1
+        seq_len = self.episode_length -1 
+        
+        image_pred_pdf = self.img_dec(transformer_feature) # B, T-1=1:tau, C, H, W
+        reward_pred_pdf = self.reward(transformer_feature) # B, T-1=1:tau, 1
+        pcont_pred_pmf = self.pcont(transformer_feature) # B, T-1=1:tau, 1
+        
+        # Compute the pcont loss
+        pcont_target = self.discount * (1. - traj['terminated'][:, 1:].float()) # B, T-1=1:tau, 1
+        pcont_loss = -(pcont_pred_pmf.log_prob((pcont_target.unsqueeze(2) > 0.5).float())).sum(-1) / seq_len
+        pcont_loss = self.pcont_scale * pcont_loss.mean()
+        pcont_accuracy = ((pcont_pred_pmf.mean == pcont_target.unsqueeze(2)).float().squeeze(-1)).sum(-1) / seq_len
+        pcont_accuracy = pcont_accuracy.mean()
+        
+        # Compute image prediction loss
+        image_pred_loss = -(image_pred_pdf.log_prob(obs[:, 1:])).sum(-1).float() / seq_len
+        image_pred_loss = image_pred_loss.mean()
+        # - MSE loss
+        pixel_loss = F.mse_loss(image_pred_pdf.mean, obs[:, 1:], reduction='none') # B, T-1=1:tau, C, H, W
+        pixel_loss = pixel_loss.flatten(start_dim=-3).sum(-1)
+        mse_loss = pixel_loss.sum(-1) / seq_len
+        
+        # Compute reward prediction loss
+        reward_pred_loss = -(reward_pred_pdf.log_prob(reward[:, 1:].unsqueeze(2))).sum(-1) / seq_len # B, T-1=1:tau, 1
+        reward_pred_loss = reward_pred_loss.mean()
+        predicted_reward = reward_pred_pdf.mean
+        
+        # Compute the KL divergence between the posterior and prior
+        prior_dist = self.dynamic.get_dist(prior_state)
+        post_dist = self.dynamic.get_dist(post_state_trimed)
+        value_lhs = kl_divergence(post_dist, self.dynamic.get_dist(prior_state, detach=True))
+        value_rhs = kl_divergence(self.dynamic.get_dist(post_state_trimed, detach=True), prior_dist)
+        value_lhs = value_lhs.sum(-1) / seq_len
+        value_rhs = value_rhs.sum(-1) / seq_len
+        loss_lhs = torch.maximum(value_lhs.mean(), value_lhs.new_ones(value_lhs.mean().shape) * self.free_nats)
+        loss_rhs = torch.maximum(value_rhs.mean(), value_rhs.new_ones(value_rhs.mean().shape) * self.free_nats)
+        kl_loss = (1. - self.kl_balance) * loss_lhs + self.kl_balance * loss_rhs
+        kl_loss = self.kl_scale * kl_loss
+        
+        # Compute the total loss
+        model_loss = image_pred_loss + reward_pred_loss + pcont_loss + kl_loss
+        
+        if global_step % self.log_every_step == 0:
+            post_dist = Independent(OneHotCategorical(logits=post_state_trimed['logits']), 1)
+            prior_dist = Independent(OneHotCategorical(logits=prior_state['logits']), 1)
+            logs = {
+                'model_loss': model_loss.detach().item(),
+                'kl_loss': kl_loss.detach().item(),
+                'kl_scale': self.kl_scale,
+                'reward_pref_loss': reward_pred_loss.detach().item(),
+                'reward_ground_truth': reward[:, 1:].detach(),
+                'reward_predicted': predicted_reward.detach().squeeze(-1),
+                'image_pred_loss': image_pred_loss.detach().item(),
+                'image_mse_loss': mse_loss.detach(),
+                'pcont_loss': pcont_loss.detach().item(),
+                'pcont_accuracy': pcont_accuracy.detach(),
+                'pcont_predicted': pcont_pred_pmf.mean.detach().squeeze(-1),
+                'prior_state': {k: v.detach() for k, v in prior_state.items()},
+                'prior_entropy': prior_dist.entropy().mean().detach().item(),
+                'post_state': {k: v.detach() for k, v in post_state.items()},
+                'post_entropy': post_dist.entropy().mean().detach().item(),
+            }
+        else:
+            logs = {}
+        
+        return model_loss, logs
+    
+    def optimize_world_model(self, model_loss, model_optimizer, writer, global_step):
+        
+        model_loss.backward()
+        grad_norm_model = torch.nn.utils.clip_grad_norm_(self.parameters(), self.grad_clip)
+        if (global_step % self.log_every_step == 0) and self.log_grad:
+            for name, param in self.named_parameters():
+                if param.requires_grad:
+                    try:
+                        writer.add_scalar('grads/' + name, param.grad.norm(2), global_step)
+                    except:
+                        pdb.set_trace()
+        model_optimizer.step()
+        return grad_norm_model.item()
+    
+    def imagine_ahead(self, traj, post_state, actor, sample_len):
+        
+        self.eval()
+        self.requires_grad_(False)
+        
+        action = traj['action']
+        
+        # randomly choose a state to start imagination
+        # - TODO [REMINDER] Seems to assume that self.horizon is smaller than equal to episode_length
+        assert self.horizon <= self.episode_length
+        
+        min_idx = self.horizon - 2 # TODO [REMINDER] I think -1 is enough
+        perm = torch.randperm(min_idx, device=action.device)
+        min_idx = perm[0] + 1
+        
+        pred_state = defaultdict(list)
+        
+        post_stoch = post_state['stoch'][:, :min_idx]
+        action = action[:, :min_idx] # TODO [IMPORTANT] Why [:, 1:]? I think it should be [:, :min_idx]
+        imag_transformer_feature_list = []
+        imag_action_list = []
+        
+        # Imagination (at least two steps, recall -2)
+        for _ in range(self.episode_length - min_idx):
+            
+            # get the prior state
+            pred_prior = self.dynamic.infer_prior_stoch(post_stoch[:, -sample_len:], action[:, -sample_len:])
+            transformer_feature = self.dynamic.get_feature(pred_prior)
+            
+            pred_action_pdf = actor(transformer_feature[:, -1:].detach()) # B, 1, d_action
+            imag_action = pred_action_pdf.sample()
+            imag_action = imag_action + pred_action_pdf.mean - pred_action_pdf.mean.detach() # straight through
+            action = torch.cat([action, imag_action], dim=1)
+            
+            for k, v in pred_prior.items():
+                pred_state[k].append(v[:,-1:])
+            post_stoch = torch.cat([post_stoch, pred_prior['stoch'][:, -1:]], dim=1)
+            
+            imag_transformer_feature_list.append(transformer_feature[:, -1:])
+            imag_action_list.append(imag_action)
+            
+        for k, v in pred_state.items():
+            pred_state[k] = torch.cat(v, dim=1) 
+        
+        actions = torch.cat(imag_action_list, dim=1)  # B, H, d_action
+        transformer_features = torch.cat(imag_transformer_feature_list, dim=1) # B, H, d_deter+d_stoch
+        
+        reward = self.reward(transformer_features).mean # B, H, 1
+        pcont = self.pcont(transformer_features).mean # B, H, 1
+        
+        return pred_state, transformer_features, actions, reward, pcont, min_idx   
     
 class TransformerDynamic(nn.Module):
     
@@ -82,38 +273,39 @@ class TransformerDynamic(nn.Module):
         # h (determinisitic state) -> z (stochastic state)
         self.prior_stoch_emb = MLP([self.deter_size, self.hidden_size, self.latent_size])
     
-    def forward(self, episode):
+    def forward(self, traj):
         """_summary_
         Args:
-            episode (dict): 
-                observations (tensor): (B, T, C, H, W)
-                actions (tensor): (B, T, d_action)
-                dones (scalar): (B, T)
+            traj (dict): 
+                observations (tensor): (B, 0:tau, C, H, W)
+                actions (tensor): (B, 0:tau, d_action)
+                dones (scalar): (B, 0:tau)
+                * where tau = 0, 1, 2, 3 ...
         Returns:
-            prior (dict): 
-            post (dict):
+            prior (dict): (B, 1:tau, ...)
+            post (dict): (B, 0:tau, ...)
         """
         
         # Extract and Normalize the observations
-        obs = episode[self.observation_type]
+        obs = traj[self.observation_type]
         obs = obs / 255. - 0.5
         obs_emb = self.img_enc(obs)
         
         # Extract the actions and dones
-        actions = episode['action']
-        dones = episode['done']
+        actions = traj['action']
+        # dones = traj['done'] # TODO [REMINDER] necessary?
         
         # Posterior and Prior Inference
         # z_t ~ p(z_t|x_t)
         post = self.infer_post_stoch(obs_emb)
         prev_stoch = post['stoch'][:, :-1]
-        prev_action = actions[:, :-1] # TODO [REMINDER] Why [:, 1:]? I revised it as [:, :-1]
+        prev_action = actions[:, :-1] # TODO [REMINDER] Why [:, 1:]? I think it should be [:, :-1]
         # z^_t ~ q(z^_t|h_t) = q(z^t|Transformer(z_1:t-1, a_1:t-1))
         prior = self.infer_prior_stoch(prev_stoch, prev_action)
         
+        post['deter'] = prior['deter']
+        post['transformer_layer_outputs'] = prior['transformer_layer_outputs']
         # TODO [REMINDER] necessary?
-        # post['deter'] = prior['deter'] 
-        # post['transformer_layer_outputs'] = prior['transformer_layer_outputs']
         # prior['stoch_int'] = prior['stoch'].argmax(-1).float()
         # post['stoch_int'] = post['stoch'].argmax(-1).float()
         return prior, post
@@ -156,15 +348,16 @@ class TransformerDynamic(nn.Module):
         act_sto_emb = self.action_stoch_emb(torch.cat([prev_action, prev_stoch], dim=-1))
         act_sto_emb = F.elu(act_sto_emb)
         x = act_sto_emb.reshape(B, T, -1, 1, 1) # B, T, D, 1, 1 where D = d_model
-        o = self.transformer(x) # B, T, L*D
+        o = self.transformer(x) # B, T, L, D, H, W
         o = o.reshape(B, T, self.num_layers, -1) # B, T, L, D
         if self.deter_type == 'concat_all_layers':
             deter = o.reshape(B, T, -1) # B, T, L*D
         else:
             deter = o[:, :, -1] # B, T, D
+            
         logits = self.prior_stoch_emb(deter).float() # B, T, N*C
-        B, T, N, C = prev_stoch.shape
         logits = logits.reshape(B, T, N, C) # B, T, N, C
+        
         prior_state = self.stochastic_layer(logits)
         prior_state['deter'] = deter # B, T, L*D
         prior_state['transformer_layer_outputs'] = o # B, T, L, D
@@ -184,7 +377,7 @@ class TransformerDynamic(nn.Module):
         if self.discrete_type == 'discrete':
             dist = Independent(OneHotCategorical(logits=logits), 1)     
             stoch = dist.sample()
-            stoch = stoch + dist.mean - dist.mean.detach()
+            stoch = stoch + dist.mean - dist.mean.detach() # straight through
         else:
             raise NotImplementedError
         
@@ -203,7 +396,25 @@ class TransformerDynamic(nn.Module):
         stoch = state['stoch'].reshape([*shape[:-2]] + [self.stoch_category_size * self.stoch_class_size]) # B, T, N*C
         deter = state['deter'] # B, T, L*D
         return torch.cat([stoch, deter], dim=-1) # B, T, N*C + L*D
-
+    
+    def get_dist(self, state, detach=False):
+        
+        return self.get_discrete_dist(state, detach)
+    
+    def get_discrete_dist(self, state, detach):
+        
+        logits = state['logits']
+        
+        if detach:
+            logits = logits.detach()
+        
+        if self.discrete_type == 'discrete':
+            dist = Independent(OneHotCategorical(logits=logits), 1)
+        elif self.discrete_type == 'gumbel':
+            raise NotImplementedError
+        
+        return dist
+        
 class ImgEncoder(nn.Module):
     
     def __init__(self, cfg):

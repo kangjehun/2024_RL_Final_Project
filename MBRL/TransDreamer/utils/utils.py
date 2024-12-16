@@ -42,7 +42,7 @@ class Checkpointer(object):
             checkpoint = torch.load(path)
         return checkpoint
             
-    def save(self, path, model, optimizers, global_step, env_step):
+    def save(self, model, optimizers, global_step, env_step, path=''):
         
         if path == '':
             

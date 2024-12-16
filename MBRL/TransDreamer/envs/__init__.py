@@ -1,5 +1,5 @@
 from .box2d import Box2D
-from .wrappers import OneHotAction, Collect, RewardObs
+from .wrappers import OneHotAction, Collect, RewardObs, TerminateOutsideTrackWrapper
 from .tools import save_episodes, summarize_episode
 
 def make_env(cfg, writer, prefix, data_dir, store=True, render_mode='rgb_array'):
@@ -28,5 +28,6 @@ def make_env(cfg, writer, prefix, data_dir, store=True, render_mode='rgb_array')
     
     # Add RewardObs Wrapper
     env = RewardObs(env)
+    env = TerminateOutsideTrackWrapper(env)
     
     return env

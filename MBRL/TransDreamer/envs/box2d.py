@@ -13,8 +13,8 @@ class Box2D:
             
         self._action_repeat = action_repeat
         self._time_limit = time_limit
-        self.step_count = 0
         self._env.reset(seed=seed)
+        self.step_count = 0
         
         # Define observation space
         obs_shape = self._env.observation_space.shape # (H, W, C)

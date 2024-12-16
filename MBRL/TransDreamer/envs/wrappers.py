@@ -67,7 +67,7 @@ class Collect:
             info['episode'] = episode
             for callback in self._callbacks:
                 callback(episode)
-        
+        obs['bev'] = obs['bev'][None,...]
         return obs, reward, terminated, truncated, info
     
     def reset(self, **kwargs):
@@ -84,7 +84,7 @@ class Collect:
         transition['terminated'] = 0.0
         transition['truncated'] = 0.0
         self._episode = [transition]
-        
+        obs['bev'] = obs['bev'][None,...]
         return obs, info
         
     def _convert(self, value):
@@ -128,3 +128,39 @@ class RewardObs:
         obs, info = self._env.reset(**kwargs)
         obs['reward'] = np.array(0.0, dtype=np.float32)
         return obs, info 
+    
+class TerminateOutsideTrackWrapper(gym.Wrapper):
+    """
+    Custom wrapper to terminate the episode if the car is too far off the track
+    (i.e., the observation contains only green pixels)
+    """
+    
+    def __init__(self, env):
+        super().__init__(env)
+    
+    def step(self, action):
+        
+        # Take a step in the environment
+        obs, reward, terminated, truncated, info = self.env.step(action)
+        
+        # Check if the car is too far away from the track
+        if self._is_all_green(obs):
+            terminated = True
+            reward -= 100
+        
+        return obs, reward, terminated, truncated, info
+    
+    def _is_all_green(self, obs):
+        """
+        Check if the observation contains only green pixels
+        """
+        
+        # Define the approximate RGB values for green
+        green_rgb = np.array([100, 220, 100])
+        tolerance = 10 # for detecting green pixels
+        
+        bev = obs['bev'][0].transpose(1, 2, 0) # (C, H, W) -> (H, W, C)        
+        diff = np.abs(bev - green_rgb).mean(axis=-1)
+        green_pixels = np.sum(diff < tolerance)
+        
+        return green_pixels > bev.shape[0] * bev.shape[1] * 0.865

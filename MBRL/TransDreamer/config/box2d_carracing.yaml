@@ -8,19 +8,27 @@ reproducibility: false
 log_dir: "data/CS672"
 data_dir: "data/CS672"
 train:
-  total_steps: 1e2
+  total_steps: 1e5
   train_steps: 100
-  train_every: 16
-  eval_every: 1e5
-  log_every: 1e3
-  checkpoint_every: 1e4
+  train_every: 16         # 16
+  eval_every: 1e5         # 1e5
+  log_every: 1e3          # 1e3
+  checkpoint_every: 1e4   # 1e4
   num_workers: 4
-  batch_size: 50
+  batch_size: 30          # 50
   episode_length: 50
+  log_grad: false
+loss:
+  pcont_scale: 5.0
+  free_nats: 0.0
+  kl_scale: 0.1
+  kl_balance: 0.8
+  entropy_scale: 1e-3
 arch:
-  prefill_steps: 5000 # 50000
+  prefill_steps: 50000    # 50000
   world_model:
     obs_type: "bev"
+    horizon: 15
     TSSM:
       hidden_size: 600
       stoch_category_size: 32
@@ -48,6 +56,7 @@ arch:
     Reward:
       layers: 4
       num_units: 400
+      transform: "tanh"
     Pcont:
       layers: 4
       num_units: 400
@@ -55,9 +64,11 @@ arch:
     layers: 4
     num_units: 400
     dist: "onehot"
+    loss_type: "reinforce"
   critic:
     layers: 4
     num_units: 400
+    slow_update_every : 100
 env:
   name: "Box2D_CarRacing-v2"
   continuous: false
@@ -66,7 +77,7 @@ env:
   precision: 32
   timelimit: 1000
   grayscale: false
-  render_mode_train: "human"
+  render_mode_train: "rgb_array"
   render_mode_eval: "rgb_array"
   render_mode_test: "human"
   observation:
@@ -86,6 +97,7 @@ optimize:
   critic_lr: 1e-4
   weight_decay: 1e-6
   eps : 1e-5
+  grad_clip: 100.0
 checkpoint:
   checkpoint_dir: "data/CS672"
   max_num: 10

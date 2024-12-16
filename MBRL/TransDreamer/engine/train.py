@@ -78,7 +78,7 @@ def train(model, cfg, device, verbose=1):
     data_dir = os.path.join(data_dir, cfg.exp_name, cfg.env.name, cfg.run_id, 'train_episodes')
     eval_data_dir = os.path.join(data_dir, cfg.exp_name, cfg.env.name, cfg.run_id, 'test_episodes')
     train_env = make_env(cfg, writer, 'train', data_dir, store=True, render_mode=cfg.env.render_mode_train)
-    test_env = make_env(cfg, writer, 'test', eval_data_dir, store=True, render_mode=cfg.env.render_mode_eval)
+    test_env = make_env(cfg, writer, 'test', eval_data_dir, store=True, render_mode=cfg.env.render_mode_test)
     
     # Prefill
     train_env.reset()
@@ -106,14 +106,14 @@ def train(model, cfg, device, verbose=1):
     
     # Initialize for training
     obs, _ = train_env.reset()
-    state = None
+    state = None # posterior state
     action_list = torch.zeros(1, 1, cfg.env.action_size).float() # B, T, d_action
     action_list[0, 0, 0] = 1.
     obs_type = cfg.arch.world_model.obs_type
     total_steps = int(float(cfg.train.total_steps))
-    train_every = int(float(cfg.train.train_every))
-    log_every = int(float(cfg.train.log_every))
+    train_every = cfg.train.train_every
     eval_every = int(float(cfg.train.eval_every))
+    log_every = int(float(cfg.train.log_every))
     checkpoint_every = int(float(cfg.train.checkpoint_every))
     episode_length = cfg.train.episode_length
     
@@ -121,17 +121,19 @@ def train(model, cfg, device, verbose=1):
     print_colored(f"- gloabl_step: {global_step}", "dark_white")
     print_colored(f"- env_step: {env_step}", "dark_white")
     print_colored(f"- total_steps: {total_steps}", "dark_white")
-    print_colored(f"- train_every: {train_every}", "dark_white")
-    print_colored(f"- log_every: {log_every}", "dark_white")
-    print_colored(f"- eval_every: {eval_every}", "dark_white")
-    print_colored(f"- checkpoint_every: {checkpoint_every}", "dark_white")
+    print_colored(f"- train_every: {train_every}, type: {type(train_every)}", "dark_white")
+    print_colored(f"- log_every: {log_every}, type: {type(log_every)}", "dark_white")
+    print_colored(f"- eval_every: {eval_every}, type: {type(eval_every)}", "dark_white")
+    print_colored(f"- checkpoint_every: {checkpoint_every}, type: {type(checkpoint_every)}", "dark_white")
     
     print_colored("Start training loop...", "blue")
+    global_step_count = train_env.step_count
     while global_step < total_steps:
         
-        # Evaluation
-        print_colored("- Evaluation", "green")
+        # Exploration
         with torch.no_grad():
+            
+            print_colored(f"- Exploration : {global_step}/{total_steps}", "dark_white")
             model.eval()
             next_obs, _, terminated, truncated, _ = train_env.step(action_list[0, -1].detach().cpu().numpy())
             prev_image = torch.tensor(obs[obs_type])
@@ -139,16 +141,92 @@ def train(model, cfg, device, verbose=1):
             action_list, state = model.policy(prev_image.to(device), next_image.to(device), action_list.to(device),
                                               state=state, episode_length=episode_length)
             obs = next_obs
-            # if truncated or terminated:
-            #     train_env.reset()
-            #     state = None
-            #     action_list = torch.zeros(1, 1, cfg.env.action_size).float() # B, T, A = d_action
-                
-                
-            
+            if truncated or terminated:
+                obs, _ = train_env.reset() # TODO [IMPORTANT] : obs should be updated
+                state = None
+                action_list = torch.zeros(1, 1, cfg.env.action_size).float() # B, T, A = d_action
+                action_list[0, 0, 0] = 1.
         
-        
-            
         # Training
-        print_colored("- Training", "green")
-        pass
+        if global_step % train_every == 0:
+            
+            print_colored(f"🔥 Training", "dark_green")
+            model.train()
+            logs = {}
+            
+            # Load data
+            traj = next(train_iter)
+            for k, v in traj.items():
+                traj[k] = v.to(device).float()
+        
+            # World model training
+            model_optimizer = optimizers['model_optimizer']
+            model_optimizer.zero_grad()
+            model_loss, model_logs, _, post_state = model.world_model_loss(traj, global_step)
+            grad_norm_model = model.world_model.optimize_world_model(model_loss, model_optimizer, writer, global_step)
+            
+            # Actor-Critic training
+            actor_optimizer = optimizers['actor_optimizer']
+            critic_optimizer = optimizers['critic_optimizer']
+            actor_optimizer.zero_grad()
+            critic_optimizer.zero_grad()
+            actor_loss, critic_loss, actor_critic_logs = model.actor_and_critic_loss(traj, post_state, global_step)
+            grad_norm_actor = model.optimize_actor(actor_loss, actor_optimizer, writer, global_step)
+            grad_norm_critic = model.optimize_critic(critic_loss, critic_optimizer, writer, global_step)
+            
+            # Loggings
+            if global_step % log_every == 0:
+                
+                print_colored(f"📥 Logging", "dark_green")
+                logs.update(model_logs)
+                logs.update(actor_critic_logs)
+                # model.write_logs(logs, traj, global_step, writer) # TODO [REMINDER] : Later implementation
+                
+                grad_norm = dict(
+                    grad_norm_model = grad_norm_model,
+                    grad_norm_actor = grad_norm_actor,
+                    grad_norm_critic = grad_norm_critic,
+                )
+                for k, v in grad_norm.items():
+                    writer.add_scalar(f"train_grad_norm/" + k, v, global_step = global_step)
+        
+        # Evaluation -> TODO [REMINDER] : Revise as TEST
+        if global_step % eval_every == 0:
+            print_colored(f"📈 Evaluation", "dark_green")
+            # TODO
+            simulate_test(cfg, model, test_env, global_step, device) 
+            
+        # Checkpoint
+        if global_step % checkpoint_every == 0:
+            print_colored(f"💾 Checkpoint", "dark_green")
+            checkpointer.save(model, optimizers, global_step, env_step)
+
+        # Update global step        
+        global_step += train_env.step_count - global_step_count
+        global_step_count = train_env.step_count
+
+
+def simulate_test(cfg, model, test_env, global_step, device):
+
+    model.eval()
+
+    obs, _ = test_env.reset()
+    action_list = torch.zeros(1, 1, cfg.env.action_size).float()
+    action_list[:, 0, 0] = 1. # B, T, C
+    state = None
+    truncated = False
+    terminated = False
+    obs_type = cfg.arch.world_model.obs_type
+
+    with torch.no_grad():
+        while not (truncated or terminated):
+          next_obs, reward, terminated, trucated, _ = test_env.step(action_list[0, -1].detach().cpu().numpy())
+          prev_image = torch.tensor(obs[obs_type])
+          next_image = torch.tensor(next_obs[obs_type])
+          action_list, state = model.policy(prev_image.to(device), 
+                                            next_image.to(device), 
+                                            action_list.to(device), 
+                                            state, 
+                                            training=False, 
+                                            episode_length=cfg.train.episode_length)
+          obs = next_obs
