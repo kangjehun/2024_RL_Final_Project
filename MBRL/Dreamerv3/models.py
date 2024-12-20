@@ -8,7 +8,7 @@ import tools
 to_np = lambda x: x.detach().cpu().numpy()
 
 
-class RewardEMA:
+class RewardEMA:                                                                            ##########                                     
     """running mean and std"""
 
     def __init__(self, device, alpha=1e-2):
@@ -251,7 +251,7 @@ class ImagBehavior(nn.Module):
             device=config.device,
             name="Value",
         )
-        if config.critic["slow_target"]:
+        if config.critic["slow_target"]:                                                                             ######
             self._slow_value = copy.deepcopy(self.value)
             self._updates = 0
         kw = dict(wd=config.weight_decay, opt=config.opt, use_amp=self._use_amp)
@@ -277,8 +277,7 @@ class ImagBehavior(nn.Module):
         print(
             f"Optimizer value_opt has {sum(param.numel() for param in self.value.parameters())} variables."
         )
-        if self._config.reward_EMA:
-            # register ema_vals to nn.Module for enabling torch.save and torch.load
+        if config.critic["slow_target"]:
             self.register_buffer(
                 "ema_vals", torch.zeros((2,), device=self._config.device)
             )
@@ -372,7 +371,7 @@ class ImagBehavior(nn.Module):
         else:
             discount = self._config.discount * torch.ones_like(reward)
         value = self.value(imag_feat).mode()
-        target = tools.lambda_return(
+        target = tools.lambda_return(                                                               #####
             reward[1:],
             value[:-1],
             discount[1:],
@@ -398,7 +397,7 @@ class ImagBehavior(nn.Module):
         policy = self.actor(inp)
         # Q-val for actor is not transformed using symlog
         target = torch.stack(target, dim=1)
-        if self._config.reward_EMA:
+        if self._config.reward_EMA:                                                  ##########
             offset, scale = self.reward_ema(target, self.ema_vals)
             normed_target = (target - offset) / scale
             normed_base = (base - offset) / scale
@@ -427,7 +426,7 @@ class ImagBehavior(nn.Module):
         actor_loss = -weights[:-1] * actor_target
         return actor_loss, metrics
 
-    def _update_slow_target(self):
+    def _update_slow_target(self):                                                  ########
         if self._config.critic["slow_target"]:
             if self._updates % self._config.critic["slow_target_update"] == 0:
                 mix = self._config.critic["slow_target_fraction"]

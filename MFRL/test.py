@@ -4,6 +4,7 @@ import argparse
 from stable_baselines3 import SAC, PPO, DDPG
 from stable_baselines3.common.vec_env import VecVideoRecorder
 from env.env_utils import create_carracing_env
+from torch.utils.tensorboard import SummaryWriter
 
 class RLTester:
     """ A class to test or record videos of trained RL agents """
@@ -33,6 +34,8 @@ class RLTester:
         self.video_length = video_length
         self.record = record
         
+        print(f"video_length: {self.video_length}")
+        
         # Paths
         self.video_folder = f"Baselines3/{self.algorithm}/video_record/video"
         self.model_path = f"Baselines3/{self.algorithm}/model/best_model.zip"
@@ -46,10 +49,12 @@ class RLTester:
         
         # Load the trained model
         self.model = self._load_model()
+
+        self.writer = SummaryWriter(log_dir=f"Baselines3/{self.algorithm}/test")
         
     def _create_environment(self):
         """ Create the evaluation environment and wrap it for video recording """
-        render_mode = "rgb_array" if self.record else "human"
+        render_mode = "rgb_array" if self.record else "rgb_array"
         env = create_carracing_env(render_mode=render_mode, use_subproc=False, num_envs=1)
         if self.record:
             env = VecVideoRecorder(
@@ -74,13 +79,17 @@ class RLTester:
         else:
             print(f"Running {self.algorithm} agent in the carracing environment...")
         
-        # Reset the environment
         obs = self.eval_env.reset()
-        
-        # Run the agent in the environment
+        cumulative_reward = 0
+        timestamp = 0
+
         for _ in range(self.video_length):
             action, _ = self.model.predict(obs, deterministic=True)
-            obs, _, done , _ = self.eval_env.step(action)
+            obs, reward, done , _ = self.eval_env.step(action)
+            cumulative_reward += reward
+            timestamp += 1
+            print(f"Timestamp: {timestamp}")
+            self.writer.add_scalar("Cumulative Reward", cumulative_reward, timestamp)
             if not self.record:
                 self.eval_env.render()
             if done:
@@ -88,10 +97,12 @@ class RLTester:
         
         # Close the environment
         self.eval_env.close()
+        self.writer.close() 
+        print(f"Environment closed after {timestamp} timesteps")
         if self.record:
             print(f"Video recording for {self.algorithm} agent completed. Saved in {self.video_folder}")
         else:
-            print(f"Testing of {self.algorithm} agent completed.")
+            print(f"Testing of {self.algorithm} agent completed")
 
 def parse_args():
     """ Parse command-line arguments """
@@ -122,4 +133,6 @@ if __name__ == "__main__":
     args = parse_args()
     
     tester = RLTester(algorithm=args.algorithm, video_length=args.video_length, record=args.record)
-    tester.run()
+
+    for run_id in range(1000): 
+        tester.run()

@@ -10,7 +10,7 @@ def create_carracing_env(render_mode="rgb_array", use_subproc=False, num_envs=1)
         def _init():
             env = gym.make("CarRacing-v2", render_mode=render_mode, domain_randomize=False)
             env = Monitor(env)
-            env = TerminateOutsideTrackWrapper(env) # To prevent the car from driving outside the track
+            # env = TerminateOutsideTrackWrapper(env) # To prevent the car from driving outside the track
             return env
         return _init
 
