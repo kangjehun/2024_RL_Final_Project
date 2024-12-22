@@ -54,13 +54,14 @@ class Transformer(nn.Module):
         
         # create positional embeddings
         pos_inputs = torch.arange(T*H*W, dtype=torch.float).to(z.device)
-        pos_embs = self.drop(self.pos_embs(pos_inputs)) # TODO [CHECK] Why dropout?
+        pos_embs = self.pos_embs(pos_inputs)
+        # pos_embs = self.drop(self.pos_embs(pos_inputs)) # TODO [REMINDER] Why dropout?
         
         # flatten spatial dimensions
-        z = rearrange(z, 'b t d h w -> (t h w) b d')
+        z = rearrange(z, 'b t d h w -> (t h w) b d') # T', B, D
         input = z + pos_embs
         
-        # T, B, D(d_model)
+        # T, B, d_model
         output = input
         output_list = []
         for i, layer in enumerate(self.layers):
@@ -72,6 +73,13 @@ class Transformer(nn.Module):
         return output # B, T, L, D, H, W
            
 class PositionalEmbedding(nn.Module):
+    
+    """_summary_
+    Args:
+        d_model (int): Model dimension
+    Returns:
+        pos_emb (tensor): (T', 1, D)
+    """
     
     def __init__(self, d_model):
         
@@ -119,15 +127,14 @@ class MultiheadAttention(nn.Module):
         self.d_model = cfg.d_model
         self.d_head = cfg.d_head
         self.num_heads = cfg.num_heads
-        self.weight_init = cfg.weight_init
         self.dropout = cfg.dropout
         self.dropatt = cfg.dropatt
         self.pre_lnorm = cfg.pre_lnorm
         
-        self.q_net = Linear(self.d_model, self.d_head * self.num_heads, bias=False, weight_init=self.weight_init)
-        self.k_net = Linear(self.d_model, self.d_head * self.num_heads, bias=False, weight_init=self.weight_init)
-        self.v_net = Linear(self.d_model, self.d_head * self.num_heads, bias=False, weight_init=self.weight_init)
-        self.out_net = Linear(self.d_head * self.num_heads, self.d_model, bias=False, weight_init=self.weight_init)
+        self.q_net = Linear(self.d_model, self.d_head * self.num_heads, bias=False)
+        self.k_net = Linear(self.d_model, self.d_head * self.num_heads, bias=False)
+        self.v_net = Linear(self.d_model, self.d_head * self.num_heads, bias=False)
+        self.out_net = Linear(self.d_head * self.num_heads, self.d_model, bias=False)
         
         self.drop = nn.Dropout(self.dropout)
         self.dropatt = nn.Dropout(self.dropatt)

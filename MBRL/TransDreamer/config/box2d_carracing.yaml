@@ -1,21 +1,39 @@
-exp_name: "CarRacingV2"
+exp_name: "train"
+run_id: "0"
+model: transdreamer
+resume: true
+resume_checkpoint: ""
 seed: 0
 reproducibility: false
+log_dir: "data/CS672"
+data_dir: "data/CS672"
+train:
+  total_steps: 1e7
+  train_steps: 100
+  train_every: 16         # 16
+  eval_every: 1e5         # 1e5
+  log_every: 1e3          # 1e3
+  checkpoint_every: 1e4   # 1e4
+  num_workers: 4
+  batch_size: 30          # 50
+  episode_length: 50
+  log_grad: false
+loss:
+  pcont_scale: 5.0
+  free_nats: 0.0
+  kl_scale: 0.1
+  kl_balance: 0.8
+  entropy_scale: 1e-3
 arch:
+  prefill_steps: 50000    # 50000
   world_model:
-    discrete_type: "discrete"
+    obs_type: "bev"
+    horizon: 15
     TSSM:
-      act: "elu"
       hidden_size: 600
-      stoch_size: 32
-      stoch_discrete: 32
-      weight_init: "xavier"
-    ImageEncoder:
-      num_channels: 48
-      kernel_size: 4
-      stride: 2
-      padding: 0
-      weight_init: "xavier"
+      stoch_category_size: 32
+      stoch_class_size: 32
+      discrete_type: "discrete"
     Transformer:
       d_model: 600
       d_head: 64
@@ -23,14 +41,63 @@ arch:
       num_heads: 8
       dropout: 0.1
       dropatt: 0.1
-      num_layers: 2
-      weight_init: "xavier"
+      num_layers: 6
       pre_lnorm: true
       last_ln: false
+      deter_type: "concat_all_layers"
+    ImageEncoder:
+      num_channels: 48
+      kernel_size: 4
+      stride: 2
+      padding: 0
+    ImageDecoder:
+      num_channels: 48
+      reconstruction_sigma: 1.0
+    Reward:
+      layers: 4
+      num_units: 400
+      transform: "tanh"
+    Pcont:
+      layers: 4
+      num_units: 400
+  actor:
+    layers: 4
+    num_units: 400
+    dist: "onehot"
+    loss_type: "reinforce"
+  critic:
+    layers: 4
+    num_units: 400
+    slow_update_every : 100
 env:
+  name: "Box2D_CarRacing-v2"
+  continuous: false
   action_size: 5
+  action_repeat: 4
+  precision: 32
+  timelimit: 1000
   grayscale: false
+  render_mode_train: "human"
+  render_mode_eval: "rgb_array"
+  render_mode_test: "rgb_array"
   observation:
-    height: 64
-    width: 64
-    channels: 3
+    image:
+      bev:
+        height: 96
+        width: 96
+        channels: 3
+        type: "bev"
+rl:
+  discount: 0.999
+  lambda_ : 0.95
+optimize:
+  optimizer: "adamW"
+  model_lr: 2e-4
+  actor_lr: 4e-5
+  critic_lr: 1e-4
+  weight_decay: 1e-6
+  eps : 1e-5
+  grad_clip: 100.0
+checkpoint:
+  checkpoint_dir: "data/CS672"
+  max_num: 10

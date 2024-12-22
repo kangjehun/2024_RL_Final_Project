@@ -1,6 +1,6 @@
 from .transdreamer import TransDreamer
 
-def get_model(cfg, device, seed=0):
+def get_model(cfg):
     
     if cfg.model == "transdreamer":
         model = TransDreamer(cfg)
