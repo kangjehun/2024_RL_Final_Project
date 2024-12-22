@@ -69,6 +69,9 @@ class Logger:
     def scalar(self, name, value):
         self._scalars[name] = float(value)
 
+    def log_cumulative_reward(self, cumulative_reward, step):
+        self._writer.add_scalar("cumulative_reward", float(cumulative_reward), global_step=step)
+
     def image(self, name, value):
         self._images[name] = np.array(value)
 
@@ -146,6 +149,7 @@ def simulate(
         obs = [None] * len(envs)
         agent_state = None
         reward = [0] * len(envs)
+        cumulative_reward = 0.0
     else:
         step, episode, done, length, obs, agent_state, reward = state
     while (steps and step < steps) or (episodes and episode < episodes):
@@ -187,6 +191,11 @@ def simulate(
         step += len(envs)
         length *= 1 - done
         # add to cache
+
+        # for idx, rew in enumerate(reward):
+        #     cumulative_reward += rew  
+        #     logger.log_cumulative_reward(cumulative_reward, step=(step + idx)*4)
+
         for a, result, env in zip(action, results, envs):
             o, r, d, info = result
             o = {k: convert(v) for k, v in o.items()}

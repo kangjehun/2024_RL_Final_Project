@@ -17,7 +17,7 @@ defaults:
   compile: True
   precision: 32
   debug: False
-  video_pred_log: False
+  video_pred_log: True
 
   # Environment
   task: 'dmc_walker_walk'
@@ -94,9 +94,10 @@ defaults:
   disag_action_cond: False
 
 car_racing:
-  steps: 2e6
+  steps: 5000
   envs: 1
   train_ratio: 512
+  video_pred_log: True
 
 debug:
   debug: True

@@ -3,16 +3,19 @@ import numpy as np
 import cv2
 
 class CarRacing:
-    def __init__(self, size=(64, 64), gray=False, seed=None, render=False):
+    def __init__(self):
         self._size = (64, 64)
         self._repeat = 4
-        self._gray = gray
-        self._random = np.random.RandomState(seed)
-        self._env = gym.make("CarRacing-v2", render_mode="rgb_array")
+        self._gray = False
+        self._env = gym.make(
+            "CarRacing-v2",
+            render_mode="human", 
+            domain_randomize=False,
+            continuous=True,
+            max_episode_steps= 1000)
         self._done = True
         self._step = 0
         self._is_first = True
-        self._render = render
 
     @property
     def observation_space(self):
@@ -23,8 +26,8 @@ class CarRacing:
     def action_space(self):
         return self._env.action_space
 
-    def reset(self):
-        obs, info = self._env.reset(seed=self._random.randint(0, 10000))
+    def reset(self, **kwargs):
+        obs, info = self._env.reset()
         self._done = False
         self._step = 0
         self._is_first = True
@@ -39,9 +42,6 @@ class CarRacing:
         for _ in range(self._repeat):
             obs, reward, terminated, truncated, info = self._env.step(action)
             total_reward += reward
-            if self._render:
-                frame = self._env.render()
-                pass
             if terminated or truncated:
                 self._done = True
                 break

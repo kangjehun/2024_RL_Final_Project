@@ -151,15 +151,14 @@ def make_env(config, id):
         from envs.car_racing import CarRacing
 
         env = CarRacing(
-            task,
-            seed=config.seed + id,
         )
     else:
         raise NotImplementedError(f"Environment suite '{suite}' is not implemented.")
     
-    env = wrappers.TimeLimit(env, config.time_limit)
+    env = wrappers.TerminateOutsideTrackWrapper(env)
     env = wrappers.SelectAction(env, key="action")
     env = wrappers.UUID(env)  
+
     return env
 
 

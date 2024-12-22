@@ -25,6 +25,10 @@ These algorithms are applied to the `CarRacing-v2` environment from OpenAI Gymna
 - Maintain the directory structure and adhere to the code style with sufficient comments.
 
 # Updates
+**2024.12.20 (Yeonchan)**
+- Added the Dreamer test code (see `Dreamerv3/test_dreamer.py`) to validate the performance of the model.
+- Added a plotting util code (see `Dreamerv3/plot.py`) to analyze the performance of different models. 
+
 **2024.12.11 (Yeonchan)**
 - Added Dreamer-v3 code for model-based RL experiments with CarRacing-v2.
 - Updated the README to include a quick start guide for running Dreamer-v3.
