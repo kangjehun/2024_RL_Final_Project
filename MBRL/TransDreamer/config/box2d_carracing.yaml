@@ -8,7 +8,7 @@ reproducibility: false
 log_dir: "data/CS672"
 data_dir: "data/CS672"
 train:
-  total_steps: 1e5
+  total_steps: 1e7
   train_steps: 100
   train_every: 16         # 16
   eval_every: 1e5         # 1e5
@@ -77,9 +77,9 @@ env:
   precision: 32
   timelimit: 1000
   grayscale: false
-  render_mode_train: "rgb_array"
+  render_mode_train: "human"
   render_mode_eval: "rgb_array"
-  render_mode_test: "human"
+  render_mode_test: "rgb_array"
   observation:
     image:
       bev:

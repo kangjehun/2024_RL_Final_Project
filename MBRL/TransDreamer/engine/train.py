@@ -176,7 +176,7 @@ def train(model, cfg, device, verbose=1):
             
             # Loggings
             if global_step % log_every == 0:
-                
+                 
                 print_colored(f"📥 Logging", "dark_green")
                 logs.update(model_logs)
                 logs.update(actor_critic_logs)
@@ -191,10 +191,10 @@ def train(model, cfg, device, verbose=1):
                     writer.add_scalar(f"train_grad_norm/" + k, v, global_step = global_step)
         
         # Evaluation -> TODO [REMINDER] : Revise as TEST
-        if global_step % eval_every == 0:
-            print_colored(f"📈 Evaluation", "dark_green")
-            # TODO
-            simulate_test(cfg, model, test_env, global_step, device) 
+        # if global_step % eval_every == 0:
+        #     print_colored(f"📈 Evaluation", "dark_green")
+        #     # TODO
+        #     simulate_test(cfg, model, test_env, global_step, device) 
             
         # Checkpoint
         if global_step % checkpoint_every == 0:
