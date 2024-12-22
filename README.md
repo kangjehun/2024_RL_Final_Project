@@ -6,7 +6,7 @@ It includes classical model-free RL algorithms **PPO**, **SAC**, and **DDPG** as
 
 as well as state-of-the-art model-free RL algorithms like **(TBD)** and model-based RL algorithms such as 
 
-**Dreamer-v2**, **Dreamer-v3**, **TransDreamer**, and **TransDreamer-v2 (Ours)**.
+**Dreamer-v2**, **Dreamer-v3**, **TransDreamer**.
 
 These algorithms are applied to the `CarRacing-v2` environment from OpenAI Gymnasium's Box2D environments.
 
@@ -56,6 +56,12 @@ python3 train.py --algorithm {PPO, SAC, DDPG}
 ```bash
 cd MBRL/Dreamerv3
 python3 dreamer.py --configs car_racing --task car_racing_v2 --logdir ./logdir/car_racing
+```
+
+### To train with Transdreamer model
+```bash
+cd MBRL/TransDreamer
+python3 main.py
 ```
 
 ### Logs with TensorBoard
