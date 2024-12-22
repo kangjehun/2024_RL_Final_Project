@@ -1,0 +1,36 @@
+exp_name: "CarRacingV2"
+seed: 0
+reproducibility: false
+arch:
+  world_model:
+    discrete_type: "discrete"
+    TSSM:
+      act: "elu"
+      hidden_size: 600
+      stoch_size: 32
+      stoch_discrete: 32
+      weight_init: "xavier"
+    ImageEncoder:
+      num_channels: 48
+      kernel_size: 4
+      stride: 2
+      padding: 0
+      weight_init: "xavier"
+    Transformer:
+      d_model: 600
+      d_head: 64
+      d_ff: 1024
+      num_heads: 8
+      dropout: 0.1
+      dropatt: 0.1
+      num_layers: 2
+      weight_init: "xavier"
+      pre_lnorm: true
+      last_ln: false
+env:
+  action_size: 5
+  grayscale: false
+  observation:
+    height: 64
+    width: 64
+    channels: 3

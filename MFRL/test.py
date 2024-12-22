@@ -54,8 +54,10 @@ class RLTester:
         
     def _create_environment(self):
         """ Create the evaluation environment and wrap it for video recording """
+
         render_mode = "rgb_array" if self.record else "rgb_array"
         env = create_carracing_env(render_mode=render_mode, use_subproc=False, num_envs=1)
+
         if self.record:
             env = VecVideoRecorder(
                 env,
@@ -80,6 +82,7 @@ class RLTester:
             print(f"Running {self.algorithm} agent in the carracing environment...")
         
         obs = self.eval_env.reset()
+
         cumulative_reward = 0
         timestamp = 0
 
@@ -98,6 +101,7 @@ class RLTester:
         # Close the environment
         self.eval_env.close()
         self.writer.close() 
+
         print(f"Environment closed after {timestamp} timesteps")
         if self.record:
             print(f"Video recording for {self.algorithm} agent completed. Saved in {self.video_folder}")
